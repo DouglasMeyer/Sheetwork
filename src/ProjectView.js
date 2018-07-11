@@ -1,91 +1,143 @@
-import React, { PureComponent } from "react";
+/* globals gapi */
+import React, { PureComponent, createRef } from "react";
 import PropTypes from "prop-types";
-
-// const pageStyle = {
-//   display: 'flex',
-//   flexDirection: 'column',
-//   justifyContent: 'center'
-// };
-
-// const gridStyle = {
-//   display: 'flex',
-//   flexWrap: 'wrap',
-//   justifyContent: 'center',
-//   alignItems: 'center'
-// };
-
-// const projectStyle = {
-//   backgroundColor: '#EEE',
-//   boxShadow: '1px 1px 1px 1px rgba(100, 100, 100, 0.3)',
-//   margin: '0.5em',
-//   padding: '1em',
-//   borderRadius: '3px',
-// };
-
-// const newProjectStyle = Object.assign({},
-//   projectStyle,
-//   {
-//     maxWidth: '200px',
-//     textAlign: 'center'
-//   }
-// );
-
-// const disabledNewProjectStyle = Object.assign({},
-//   newProjectStyle,
-//   {
-//     color: '#888'
-//   }
-// );
 
 export default class ProjectView extends PureComponent {
   static propTypes = {
-    project: PropTypes.shape({
-    })
-    // onProject: PropTypes.func
+    projectId: PropTypes.string.isRequired,
+    authUser: PropTypes.shape({})
   }
 
-  // constructor(props) {
-  //   super(props);
-  //   const storedProjects = localStorage.getItem('Sheetwork_projects');
-  //   const projects = storedProjects
-  //     ? JSON.parse(storedProjects)
-  //     : [
-  //         { name: 'TaskTickets' }
-  //       ];
-  //   this.state = { projects };
-  // }
+  state = {
+    spreadsheet: null,
+    headers: {},
+    records: {}
+  }
 
-  // handleNewProject = async () => {
-  //   const project = fetch(`/projects`, {
-  //     method: 'POST'
-  //   });
-  //   this.props.onProject(project);
-  // }
+  dateRef = createRef()
+  amountRef = createRef()
+  accountRef = createRef()
+  descriptionRef = createRef()
+
+  componentDidMount() {
+    this.ensureSpreadsheet();
+  }
+
+  componentDidUpdate() {
+    this.ensureSpreadsheet();
+  }
+
+  async ensureSpreadsheet() {
+    const { authUser, projectId } = this.props;
+
+    if (!authUser) return;
+    if (this.state.spreadsheet && this.state.spreadsheet.spreadsheetId === projectId) return;
+
+    let response = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: projectId })
+
+    const spreadsheet = response.result;
+    this.setState({ spreadsheet, headers: {}, records: {} });
+
+    response = await gapi.client.sheets.spreadsheets.values.batchGet({
+      spreadsheetId: projectId,
+      ranges: spreadsheet.sheets.map(sheet => `${sheet.properties.title}!A1:Z1000`)
+    });
+
+    const headers = response.result.valueRanges.reduce((acc, { range, values }) => ({
+      ...acc,
+      [range.split('!')[0]]: values[0]
+    }), {});
+
+    const records = response.result.valueRanges.reduce((acc, { range, values }) => {
+      const sheet = range.split('!')[0];
+      return {
+        ...acc,
+        [sheet]: values.slice(1).map(cols =>
+          cols.reduce((attrs, col, index) => ({ ...attrs, [headers[sheet][index]]: col }), {})
+        )
+      };
+    }, {});
+
+    this.setState({ headers, records });
+  }
+  handleSubmit = async (e) => {
+    e.preventDefault();
+    const { projectId } = this.props;
+    const value = [
+      this.dateRef.current.value,
+      this.amountRef.current.value,
+      this.accountRef.current.value,
+      this.descriptionRef.current.value,
+    ];
+
+    const appendResponse = await gapi.client.sheets.spreadsheets.values
+      .append({ spreadsheetId: projectId, range: "Transactions!A1:Z1000", valueInputOption: "USER_ENTERED" }, { values: [ value ] })
+
+    this.dateRef.current.value = '';
+    this.amountRef.current.value = '';
+    this.accountRef.current.value = '';
+    this.descriptionRef.current.value = '';
+
+    const getResponse = await gapi.client.sheets.spreadsheets.values.get({
+      spreadsheetId: projectId,
+      range: appendResponse.result.updates.updatedRange
+    });
+
+    const headers = this.state.headers.Transactions;
+
+    const record = getResponse.result.values[0].reduce((attrs, value, index) => ({ ...attrs, [headers[index]]: value }), {});
+
+    this.setState(({ records }) => ({
+      records: { ...records, Transactions: [ ...records.Transactions, record ] }
+    }));
+  }
 
   render() {
-    const { project } = this.props;
-    console.log(project);
+    const { spreadsheet, headers, records } = this.state;
+    if (!spreadsheet) return <div style={{ display: 'grid', placeContent: 'center' }}>Loading ...</div>;
 
-    // return <div style={pageStyle}>
-    //   <div style={gridStyle}>
-    //     <div style={disabledNewProjectStyle}>
-    //       Create project from<br /><em>existing spreadsheet</em>
-    //     </div>
-    //     <div style={newProjectStyle} onClick={this.handleNewProject}>
-    //       Create project from<br /><em>new spreadsheet</em>
-    //     </div>
-    //     <div style={disabledNewProjectStyle}>
-    //       Create project<br /><em>stored on this computer</em>
-    //     </div>
-    //   </div>
-    //   <div style={gridStyle}>
-    //     { projects.map(project =>
-    //       <div key={project.name} style={projectStyle}>
-    //         { project.name }
-    //       </div>
-    //     )}
-    //   </div>
-    // </div>;
-    return <pre>{JSON.stringify(project, null, 2)}</pre>;
+    return <div>
+      { spreadsheet.sheets.map((sheet) => {
+        const title = sheet.properties.title;
+        const sheetHeaders = headers[title];
+        const sheetRecords = records[title];
+        if (!sheetHeaders) return;
+
+        return <table key={sheet.properties.sheetId}>
+          <caption>{title}</caption>
+          <thead>
+            <tr>
+              { sheetHeaders.map(header => <th key={header}>{header}</th>) }
+            </tr>
+          </thead>
+          <tbody>
+            { sheetRecords.map((record, y) =>
+              <tr key={y}>
+                { sheetHeaders.map((col, x) => <td key={x}>{record[col]}</td>) }
+              </tr>
+            ) }
+          </tbody>
+        </table>;
+      }) }
+      <form onSubmit={this.handleSubmit}>
+        <label>
+          Date
+          <input type="date" ref={this.dateRef} defaultValue={(new Date).toJSON().slice(0, 10)} />
+        </label>
+        <label>
+          Amount
+          <input type="number" ref={this.amountRef} />
+        </label>
+        <label>
+          Account
+          <input type="text" ref={this.accountRef} />
+        </label>
+        <label>
+          Description
+          <input type="text" ref={this.descriptionRef} />
+        </label>
+        <input type="submit" value="Submit" />
+      </form>
+    </div>;
   }
 }

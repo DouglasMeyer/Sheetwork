@@ -9,5 +9,8 @@ app.post('/projects', (req, res) => {
   });
 });
 // app.get('/', (req, res) => res.send('Hello World!'));
+app.get('*', (req, res) => {
+  res.sendFile('./public/index.html', { root: __dirname });
+});
 
 app.listen(3000, () => console.log('Example app listening on port 3000!')); // eslint-disable-line no-console

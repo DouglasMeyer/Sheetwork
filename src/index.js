@@ -1,10 +1,24 @@
 /* globals gapi */
 import 'babel-polyfill'
-import React, { PureComponent, cloneElement } from 'react';
+import React, { PureComponent, Fragment } from 'react';
 import ReactDOM from "react-dom";
 
-import ProjectsView from './ProjectsView'
-import ProjectView from './ProjectView'
+import Router from './Router';
+import ProjectsView from './ProjectsView';
+import ProjectView from './ProjectView';
+
+function encodeRoute({ projectId }) {
+  const pathname = projectId ? `/project/${projectId}` : '/';
+  const search = '';
+  return { pathname, search };
+}
+function decodeRoute({ pathname }) {
+  const page = { projectId: null };
+  const projectMatch = /^\/project\/([^/]+)/.exec(pathname);
+  if (projectMatch) page.projectId = projectMatch[1];
+
+  return page;
+}
 
 const CLIENT_ID = 'XXX';
 const API_KEY = 'YYY';
@@ -14,9 +28,7 @@ const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 class App extends PureComponent {
   state = {
     authUser: null,
-    view: <ProjectsView
-      onProject={project => this.setState({ view: <ProjectView project={project} /> })}
-    />
+    projectId: null
   }
 
   componentDidMount() {
@@ -44,10 +56,25 @@ class App extends PureComponent {
   updateAuthUser = (authUser) => {
     this.setState({ authUser });
   }
+  handlePageChange = ({ projectId }) => {
+    this.setState({ projectId });
+  }
+  handleProject = (project) => {
+    this.setState({ projectId: project.spreadsheetId });
+  }
 
   render() {
-    const { authUser, view } = this.state;
-    return cloneElement(view, { authUser });
+    const { authUser, projectId } = this.state;
+    return <Fragment>
+      <Router encode={encodeRoute} decode={decodeRoute}
+        page={{ projectId }}
+        onPageChange={this.handlePageChange}
+      />
+      { projectId
+        ? <ProjectView authUser={authUser} projectId={projectId} />
+        : <ProjectsView authUser={authUser} onProject={this.handleProject} />
+      }
+    </Fragment>
   }
 }
 

@@ -1,76 +1,32 @@
 // @flow
 import { Component } from 'react';
-import { createHashHistory as createHistory } from 'history';
-import LZString from 'lz-string';
+import PropTypes from "prop-types";
+import { createBrowserHistory as createHistory } from 'history';
 
-type CurrentPageType = {
-  component?: string,
-  styles?: string,
-  playground?: string
-}
+export default class Router extends Component {
+  static propTypes = {
+    encode: PropTypes.func.isRequired,
+    decode: PropTypes.func.isRequired,
+    page: PropTypes.any.isRequired,
+    onPageChange: PropTypes.func.isRequired,
 
-type Route = {
-  currentPage: CurrentPageType
-}
-
-type Location = any
-
-type RouterProps = Route & {
-  setCurrentPage: (currentPage: CurrentPageType) => void
-}
-
-export function encode({ currentPage }: Route): Location {
-  let pathname;
-  if (currentPage.component) pathname = `/component/${currentPage.component}`;
-  else if (currentPage.styles) pathname = `/styles/${currentPage.styles}`;
-  else if (currentPage.playground !== undefined) pathname = `/playground/${LZString.compressToEncodedURIComponent(currentPage.playground)}`;
-  else pathname = '/';
-  const search = '?';
-  return { pathname, search };
-}
-
-function decode({ pathname, search }: Location): Route {
-  const currentPage: CurrentPageType = {};
-  const pageMatch = /^\/(component|styles|playground)\/([^/]+)/.exec(pathname);
-  if (pageMatch) currentPage[pageMatch[1]] = pageMatch[2];
-
-  // Old way of linking to playground
-  const playgroundMatch = /playground=(.*)/.exec(search);
-  if (playgroundMatch) {
-    currentPage.playground = decodeURIComponent(playgroundMatch[1]);
-  // New way of linking to playground
-  } else if (currentPage.playground) {
-    currentPage.playground = LZString.decompressFromEncodedURIComponent(currentPage.playground);
+    isPageChange: PropTypes.func
   }
 
-  return { currentPage };
-}
+  static defaultProps = {
+    isPageChange: () => true
+  }
 
-export default class Router extends Component<RouterProps> {
-  history: any
-  endHistory: any
-
-  isCurrentLocation({ pathname, search }: Location) {
+  isCurrentLocation({ pathname, search }) {
     return pathname === this.history.location.pathname &&
-      search === (this.history.location.search || '?');
+      search === this.history.location.search;
   }
 
-  isPageChange(oldState: Route) {
-    const { currentPage: { component, styles, playground } } = this.props;
-    return component !== oldState.currentPage.component ||
-      styles !== oldState.currentPage.styles ||
-      // It isn't a page change if the playground contents changes.
-      !!playground !== !!oldState.currentPage.playground;
-  }
-
-  componentWillMount() {
+  componentDidMount() {
     this.history = createHistory();
 
     const onHistory = (location) => {
-      const {
-        currentPage,
-        setCurrentPage
-      } = this.props;
+      const { encode, decode, page, onPageChange } = this.props;
 
       const decoded = decode(location);
       const encoded = encode(decoded);
@@ -79,8 +35,8 @@ export default class Router extends Component<RouterProps> {
       }
 
       if (
-        JSON.stringify(decoded.currentPage) !== JSON.stringify(currentPage)
-      ) setCurrentPage(decoded.currentPage);
+        JSON.stringify(decoded) !== JSON.stringify(page)
+      ) onPageChange(decoded);
     };
     onHistory(this.history.location);
     this.endHistory = this.history.listen(onHistory);
@@ -90,16 +46,16 @@ export default class Router extends Component<RouterProps> {
     this.endHistory();
   }
 
-  shouldComponentUpdate(nextProps: RouterProps) {
-    return this.props.currentPage !== nextProps.currentPage;
+  shouldComponentUpdate(nextProps) {
+    return this.props.page !== nextProps.page;
   }
 
   componentDidUpdate() {
-    const { currentPage } = this.props;
-    const oldState = decode(this.history.location);
-    const encoded = encode({ currentPage });
+    const { decode, encode, page, isPageChange } = this.props;
+    const oldPage = decode(this.history.location);
+    const encoded = encode(page);
     if (!this.isCurrentLocation(encoded)) {
-      if (this.isPageChange(oldState)) {
+      if (isPageChange(oldPage)) {
         this.history.push(encoded);
       } else {
         this.history.replace(encoded);

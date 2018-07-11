@@ -69,7 +69,6 @@ export default class ProjectsView extends PureComponent {
       return { projects: newProjects };
     });
 
-
     this.props.onProject(project);
   }
 
