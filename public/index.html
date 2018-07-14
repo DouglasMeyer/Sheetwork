@@ -11,11 +11,28 @@
       html, body, #root, #root > * {
         height: 100%;
       }
+      table {
+        margin: 0 auto;
+        border-spacing: 1em 5px;
+      }
+      table th {
+        text-align: left;
+      }
       p {
         margin-top: 0;
       }
-      button {
+      button, input {
         font: inherit;
+      }
+      form {
+        margin: 0 auto;
+      }
+      form label {
+        display: inline-block;
+        margin: 0 0.5em;
+      }
+      form label > input {
+        display: block;
       }
     </style>
   </head>
