@@ -2,7 +2,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { ActionsContext, RecordsContext, SpreadsheetContext } from './contexts';
-import { GridView, TableView, FormView } from './Components';
+import * as Components from './Components';
 
 export default class ProjectView extends PureComponent {
   static propTypes = {
@@ -13,38 +13,7 @@ export default class ProjectView extends PureComponent {
   state = {
     spreadsheet: null,
     records: {},
-    view: {
-      component: GridView,
-      children: [
-        {
-          component: TableView,
-          records: 'Accounts',
-          columns: {
-            'Account': {},
-            'Amount': { attr: 'SUM of Amount', align: 'right' }
-          }
-        },
-        {
-          component: TableView,
-          records: 'Transactions',
-          columns: {
-            'Date': { align: 'right' },
-            'Amount': { align: 'right' },
-            'Account': {},
-            'Description': {}
-          }
-        },
-        { component: FormView,
-          record: 'Transactions',
-          fields: {
-            'Date': { type: 'date', defaultValue: (new Date).toJSON().slice(0, 10) },
-            'Amount': { type: 'number' },
-            'Account': { listFrom: 'Accounts.Account' },
-            'Description': {}
-          }
-        }
-      ]
-    }
+    view: {}
   }
 
   componentDidMount() {
@@ -64,7 +33,14 @@ export default class ProjectView extends PureComponent {
     let response = await gapi.client.sheets.spreadsheets.get({ spreadsheetId: projectId })
 
     const spreadsheet = response.result;
-    this.setState({ spreadsheet, records: {} });
+    let view;
+    try {
+      view = JSON.parse(spreadsheet.developerMetadata.find(({ metadataKey }) => metadataKey === "Sheetwork_View").metadataValue);
+    } catch (e) {
+      console.error(e, spreadsheet); // eslint-disable-line no-console
+      view = { component: 'JSONView' };
+    }
+    this.setState({ spreadsheet, records: {}, view });
 
     await this.handleUpdateRecords();
   }
@@ -90,17 +66,10 @@ export default class ProjectView extends PureComponent {
 
     this.setState({ records });
   }
-  handleTitleUpdate = async ({ target: { value } }) => {
-    const { projectId } = this.props;
-
-    await gapi.client.sheets.spreadsheets
-      .batchUpdate({ spreadsheetId: projectId }, { requests: [ { updateSpreadsheetProperties: {
-        properties: { title: value }, fields: 'title'
-      } } ] });
-  }
 
   render() {
-    const { spreadsheet, records, view: { component: ViewComponent, ...componentProps } } = this.state;
+    const { spreadsheet, records, view: { component: componentName, ...componentProps } } = this.state;
+    const ViewComponent = Components[componentName];
     const actions = {
       onUpdateRecords: this.handleUpdateRecords
     };

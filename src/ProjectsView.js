@@ -57,6 +57,12 @@ export default class ProjectsView extends PureComponent {
     var spreadsheetBody = {
       properties: {
         title: "Untitled Sheetwork spreadsheet"
+      },
+      developerMetadata: {
+        metadataKey: 'Sheetwork_View',
+        metadataValue: JSON.stringify({ component: 'JSONView' }),
+        location: { spreadsheet: true },
+        visibility: 'PROJECT'
       }
     };
 
