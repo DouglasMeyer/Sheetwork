@@ -6,17 +6,30 @@ import ReactDOM from "react-dom";
 import Router from './Router';
 import ProjectsView from './ProjectsView';
 import ProjectView from './ProjectView';
+import ProjectEditView from './ProjectEditView';
 
-function encodeRoute({ projectId }) {
-  const pathname = projectId ? `/project/${projectId}` : '/';
+function encodeRoute({ projectId, edit }) {
+  const pathname = projectId ? `/project/${projectId}${edit ? '/edit' : ''}` : '/';
   const search = '';
   return { pathname, search };
 }
+const pathRegExp = new RegExp(`^/
+(?:project
+  (?:/
+    (?<projectId>[^/]+)
+    (?:/
+      (?<edit>edit)?
+    )?
+  )?
+)
+`.replace(/\n */g, ''));
 function decodeRoute({ pathname }) {
-  const page = { projectId: null };
-  const projectMatch = /^\/project\/([^/]+)/.exec(pathname);
-  if (projectMatch) page.projectId = projectMatch[1];
+  const groups = (pathRegExp.exec(pathname) || {}).groups || {};
+  console.log('groups', groups);
+  const { projectId, edit } = groups;
 
+  const page = { projectId };
+  if (projectId && edit) page.edit = true;
   return page;
 }
 
@@ -28,7 +41,8 @@ const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 class App extends PureComponent {
   state = {
     authUser: null,
-    projectId: null
+    projectId: null,
+    edit: false
   }
 
   componentDidMount() {
@@ -56,22 +70,24 @@ class App extends PureComponent {
   updateAuthUser = (authUser) => {
     this.setState({ authUser });
   }
-  handlePageChange = ({ projectId }) => {
-    this.setState({ projectId });
+  handlePageChange = ({ projectId, edit }) => {
+    this.setState({ projectId, edit });
   }
   handleProject = (project) => {
-    this.setState({ projectId: project.spreadsheetId });
+    this.setState({ projectId: project.spreadsheetId, edit: true });
   }
 
   render() {
-    const { authUser, projectId } = this.state;
+    const { authUser, projectId, edit } = this.state;
     return <Fragment>
       <Router encode={encodeRoute} decode={decodeRoute}
-        page={{ projectId }}
+        page={{ projectId, edit }}
         onPageChange={this.handlePageChange}
       />
       { projectId
-        ? <ProjectView authUser={authUser} projectId={projectId} />
+        ? edit
+          ? <ProjectEditView authUser={authUser} projectId={projectId} />
+          : <ProjectView authUser={authUser} projectId={projectId} />
         : <ProjectsView authUser={authUser} onProject={this.handleProject} />
       }
     </Fragment>

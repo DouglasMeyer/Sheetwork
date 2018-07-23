@@ -4,7 +4,7 @@ import PropTypes from "prop-types";
 import { ActionsContext, RecordsContext, SpreadsheetContext } from './contexts';
 import { GridView, TableView, FormView } from './Components';
 
-export default class ProjectView extends PureComponent {
+export default class ProjectEditView extends PureComponent {
   static propTypes = {
     projectId: PropTypes.string.isRequired,
     authUser: PropTypes.shape({})
@@ -107,7 +107,7 @@ export default class ProjectView extends PureComponent {
     if (!spreadsheet) return <div style={{ display: 'grid', placeContent: 'center' }}>Loading ...</div>;
 
     return <div>
-      <h1>{ spreadsheet.properties.title }</h1>
+      <h1><input defaultValue={ spreadsheet.properties.title } onBlur={this.handleTitleUpdate} /></h1>
       <ActionsContext.Provider value={actions}>
         <RecordsContext.Provider value={records}>
           <SpreadsheetContext.Provider value={spreadsheet}>
