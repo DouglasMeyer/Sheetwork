@@ -99,7 +99,7 @@ export default class ProjectEditView extends PureComponent {
       console.error(e); // eslint-disable-line no-console
     }
   }
-  handleUpdate = (view) => {
+  handleUpdate = (view = {}) => {
     this.setState({ view });
   }
 
@@ -117,6 +117,7 @@ export default class ProjectEditView extends PureComponent {
         <a href={spreadsheet.spreadsheetUrl} target="_new">↪</a>
       </h1>
       <button onClick={this.handleViewUpdate}>Save</button>
+      <button onClick={this.handleUpdate}>Remove Root</button>
       <ActionsContext.Provider value={actions}>
         <RecordsContext.Provider value={records}>
           <SpreadsheetContext.Provider value={spreadsheet}>

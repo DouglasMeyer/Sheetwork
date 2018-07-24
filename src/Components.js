@@ -6,11 +6,6 @@ import { ActionsContext, RecordsContext, SpreadsheetContext } from './contexts';
 function objectMap(object, fn) {
   return Object.keys(object).map((key, index) => fn(key, object[key], index));
 }
-function objectFilter(object, fn) {
-  return Object.keys(object)
-    .filter((key, index) => fn(key, object[key], index))
-    .reduce((newObject, key) => ({ ...newObject, [key]: object[key] }), {});
-}
 function firstInstance(item, index, array) {
   return array.indexOf(item) === index;
 }
@@ -65,11 +60,17 @@ export class TableView extends PureComponent {
   }
 
   render() {
-    const { records, allRecords, columns: propColumns } = this.props;
+    const { records, allRecords, columns: propColumns, edit } = this.props;
     const { attributes=[], list=[] } = allRecords[records] ? allRecords[records] : {};
     const columns = propColumns || attributes.reduce((attrs, attr) => ({ ...attrs, [attr]: {} }), {});
 
     return <table>
+      { edit
+        ? <caption style={{ backgroundColor: '#CCC', border: '1px dashed black' }}>
+            TableView
+          </caption>
+        : false
+      }
       <thead>
         <tr>
           { objectMap(columns, (col, { align }) => <th key={col} style={{ textAlign: align }}>{ col }</th>) }
@@ -148,6 +149,112 @@ export class GridView extends PureComponent {
     </div>;
   }
 }
+@consumesContext(RecordsContext, 'records')
+class FormFieldView extends PureComponent {
+  static propTypes = {
+    records: PropTypes.shape({}),
+    name: PropTypes.string.isRequired,
+    hidden: PropTypes.bool,
+    type: PropTypes.string,
+    listFrom: PropTypes.string,
+    defaultValue: PropTypes.string,
+    edit: PropTypes.bool,
+    onUpdate: PropTypes.func
+  }
+
+  handleHidden = ({ target: { checked } }) => {
+    const { name, onUpdate, edit: _edit, records: _records, ...props } = this.props;
+    onUpdate(name, { ...props, hidden: checked });
+  }
+  handleType = ({ target: { value } }) => {
+    const { name, onUpdate, edit: _edit, records: _records, ...props } = this.props;
+    onUpdate(name, { ...props, type: value });
+  }
+  handleDefault = ({ target: { value } }) => {
+    const { name, onUpdate, edit: _edit, records: _records, ...props } = this.props;
+    onUpdate(name, { ...props, defaultValue: value });
+  }
+  handleListFrom = ({ target: { value } }) => {
+    const { name, onUpdate, edit: _edit, records: _records, ...props } = this.props;
+    onUpdate(name, { ...props, listFrom: value });
+  }
+
+  render() {
+    const {
+      records, name, type, listFrom, hidden, defaultValue, edit,
+      onUpdate: _onUpdate,
+      ...props
+    } = this.props;
+
+    let list;
+    if (listFrom) {
+      const [ collection, listAttr ] = listFrom.split('.');
+      list = <datalist id={`${name}_list`}>
+        { (records[collection] ? records[collection].list : []).map(item => item[listAttr]).filter(firstInstance).map(item => <option key={item} value={item} />) }
+      </datalist>;
+    }
+
+    return <Fragment>
+      { edit
+        ? <div style={{ backgroundColor: '#CCC', border: '1px dashed black' }}>
+            <label>
+              Hide
+              <input type="checkbox" checked={Boolean(hidden)} onChange={this.handleHidden} />
+            </label>
+            <label>
+              Type
+              <select value={type} onChange={this.handleType}>
+                <option></option>
+                <option>number</option>
+                <option>date</option>
+                <option>select</option>
+              </select>
+            </label>
+            <label>
+              List
+              <datalist id={`${name}_list_list`}>
+                { Object.keys(records).map(recordName =>
+                  <Fragment key={recordName}>
+                    { records[recordName].attributes
+                      .map(attrName => `${recordName}.${attrName}`)
+                      .map(value => <option key={value} value={value} />)
+                    }
+                  </Fragment>
+                ) }
+              </datalist>
+              <input value={listFrom} list={`${name}_list_list`} onChange={this.handleListFrom} />
+            </label>
+            <label>
+              Default
+              <datalist id={`${name}_default_list`}>
+                { type === 'date' ? <option value="now" /> : null }
+                {/* { fields[attr].listFrom ? <option value="now" /> : null } */}
+              </datalist>
+              <input value={defaultValue} list={`${name}_default_list`} onChange={this.handleDefault} />
+            </label>
+          </div>
+        : null
+      }
+      <label>
+        {name}
+        {list}
+        { hidden
+          ? null
+          : <input
+              type={type || 'text'}
+              name={name}
+              list={listFrom ? `${name}_list` : null}
+              defaultValue={type === 'date' && defaultValue === 'now'
+                ? (new Date).toJSON().slice(0, 10)
+                : defaultValue
+              }
+              {...props}
+            />
+        }
+      </label>
+    </Fragment>;
+  }
+}
 @consumesContext(ActionsContext, 'actions')
 @consumesContext(RecordsContext, 'records')
 @consumesContext(SpreadsheetContext, 'spreadsheet')
@@ -175,47 +282,14 @@ export class FormView extends PureComponent {
 
     onUpdateRecords();
   }
-  handleUseAttr = (attr) => {
-    const { onUpdate, record, fields } = this.props;
-    onUpdate({
-      component: 'FormView',
-      record,
-      fields: objectFilter({
-        ...fields,
-        [attr]: fields[attr] ? null : {}
-      }, (k, v) => Boolean(v))
-    });
-  }
-  handleTypeAttr = (attr, type) => {
-    const { onUpdate, record, fields } = this.props;
+  handleAttrUpdate = (name, props) => {
+    const { record, fields, onUpdate } = this.props;
     onUpdate({
       component: 'FormView',
       record,
       fields: {
         ...fields,
-        [attr]: { ...fields[attr], type }
-      }
-    });
-  }
-  handleDefaultAttr = (attr, defaultValue) => {
-    const { onUpdate, record, fields } = this.props;
-    onUpdate({
-      component: 'FormView',
-      record,
-      fields: {
-        ...fields,
-        [attr]: { ...fields[attr], defaultValue }
-      }
-    });
-  }
-  handleListFromAttr = (attr, listFrom) => {
-    const { onUpdate, record, fields } = this.props;
-    onUpdate({
-      component: 'FormView',
-      record,
-      fields: {
-        ...fields,
-        [attr]: { ...fields[attr], listFrom }
+        [name]: props
       }
     });
   }
@@ -236,75 +310,17 @@ export class FormView extends PureComponent {
 
     return <form onSubmit={this.handleSubmit}>
       { edit
-        ? <div style={{ backgroundColor: '#CCC', border: '1 dashed black' }}>
+        ? <div style={{ backgroundColor: '#CCC', border: '1px dashed black' }}>
+            FormView
             <select value={record} onChange={this.handleChangeRecord}>
               { Object.keys(records).map(recordName => <option key={recordName}>{recordName}</option>) }
             </select>
-            { attributes.map(attr =>
-              <div key={attr}>
-                {attr}
-                <label>
-                  Use
-                  <input type="checkbox" checked={fields[attr] ? true : false} onChange={() => this.handleUseAttr(attr)} />
-                </label>
-                <label>
-                  Type
-                  <select value={fields[attr].type} onChange={({ target: { value } }) => this.handleTypeAttr(attr, value)}>
-                    <option></option>
-                    <option>number</option>
-                    <option>date</option>
-                    <option>select</option>
-                  </select>
-                </label>
-                <label>
-                  List
-                  <datalist id={`${attr}_list_list`}>
-                    { Object.keys(records).map(recordName =>
-                      <Fragment key={recordName}>
-                        { records[recordName].attributes
-                          .map(attrName => `${recordName}.${attrName}`)
-                          .map(value => <option key={value} value={value} />)
-                        }
-                      </Fragment>
-                    ) }
-                  </datalist>
-                  <input value={fields[attr].listFrom} list={`${attr}_list_list`} onChange={({ target: { value } }) => this.handleListFromAttr(attr, value)} />
-                </label>
-                <label>
-                  Default
-                  <datalist id={`${attr}_default_list`}>
-                    { fields[attr].type === 'date' ? <option value="now" /> : null }
-                  </datalist>
-                  <input value={fields[attr].defaultValue} list={`${attr}_default_list`} onChange={({ target: { value } }) => this.handleDefaultAttr(attr, value)} />
-                </label>
-              </div>
-            ) }
           </div>
         : false
       }
-      { objectMap(fields, (attr, { listFrom, type, defaultValue, ...props }) => {
-        let list;
-        if (listFrom) {
-          const [ collection, listAttr ] = listFrom.split('.');
-          list = <datalist id={`${attr}_list`}>
-            { (records[collection] ? records[collection].list : []).map(item => item[listAttr]).filter(firstInstance).map(item => <option key={item} value={item} />) }
-          </datalist>;
-        }
-        return <label key={attr}>
-          {attr}
-          {list}
-          <input
-            type={type || 'text'}
-            name={attr}
-            list={listFrom ? `${attr}_list` : null}
-            defaultValue={type === 'date' && defaultValue === 'now'
-              ? (new Date).toJSON().slice(0, 10)
-              : defaultValue
-            }
-            {...props}
-          />
-        </label>;
-      } ) }
+      { objectMap(fields, (attr, props) =>
+        props.hidden && !edit ? null : <FormFieldView key={attr} name={attr} {...props} edit={edit} onUpdate={this.handleAttrUpdate} />
+      ) }
       <input type="submit" />
     </form>;
   }

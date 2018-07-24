@@ -33,8 +33,8 @@ function decodeRoute({ pathname }) {
   return page;
 }
 
-const CLIENT_ID = 'XXX';
-const API_KEY = 'YYY';
+const CLIENT_ID = '38243760343-v9ol1etb6tjiiaqu4i9gkjgrn6bo3t5k.apps.googleusercontent.com';
+const API_KEY = 'AIzaSyDqXoinrpugGNi52LWnrMfDGAQFjad0td4';
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
