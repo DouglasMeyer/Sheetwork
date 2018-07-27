@@ -25,7 +25,6 @@ const pathRegExp = new RegExp(`^/
 `.replace(/\n */g, ''));
 function decodeRoute({ pathname }) {
   const groups = (pathRegExp.exec(pathname) || {}).groups || {};
-  console.log('groups', groups);
   const { projectId, edit } = groups;
 
   const page = { projectId };
@@ -73,8 +72,8 @@ class App extends PureComponent {
   handlePageChange = ({ projectId, edit }) => {
     this.setState({ projectId, edit });
   }
-  handleProject = (project) => {
-    this.setState({ projectId: project.spreadsheetId, edit: true });
+  handleProject = (projectId) => {
+    this.setState({ projectId, edit: true });
   }
 
   render() {

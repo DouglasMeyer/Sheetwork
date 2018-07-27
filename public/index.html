@@ -30,9 +30,13 @@
       form label {
         display: inline-block;
         margin: 0 0.5em;
+        vertical-align: top;
       }
-      form label > input {
+      form label > input, form label > select {
         display: block;
+      }
+      form label + input {
+        margin-top: 1.2em;
       }
     </style>
   </head>

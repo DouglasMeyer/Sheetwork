@@ -1,6 +1,7 @@
 /* globals gapi */
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
+import { get, set } from './persistance';
 
 const pageStyle = {
   display: 'flex',
@@ -48,9 +49,7 @@ export default class ProjectsView extends PureComponent {
 
   constructor(props) {
     super(props);
-    const storedProjects = localStorage.getItem('Sheetwork_projects');
-    const projects = storedProjects ? JSON.parse(storedProjects) : [];
-    this.state = { projects };
+    this.state = { projects: get('projects', {}) };
   }
 
   handleNewProject = async () => {
@@ -68,14 +67,14 @@ export default class ProjectsView extends PureComponent {
 
     const response = await gapi.client.sheets.spreadsheets.create({}, spreadsheetBody);
 
-    const project = response.result;
+    const { spreadsheetId: id, properties: { title } } = response.result;
     this.setState(({ projects }) => {
-      const newProjects = [ project, ...projects ];
-      localStorage.setItem('Sheetwork_projects', JSON.stringify(newProjects))
+      const newProjects = { ...projects, [id]: title };
+      set('projects', newProjects);
       return { projects: newProjects };
     });
 
-    this.props.onProject(project);
+    this.props.onProject(id);
   }
 
   render() {
@@ -95,9 +94,9 @@ export default class ProjectsView extends PureComponent {
         </div>
       </div>
       <div style={gridStyle}>
-        { projects.map(project =>
-          <div key={project.spreadsheetId} style={projectStyle} onClick={() => this.props.onProject(project)}>
-            { project.properties.title }
+        { Object.keys(projects).map(projectId =>
+          <div key={projectId} style={projectStyle} onClick={() => this.props.onProject(projectId)}>
+            { projects[projectId] }
           </div>
         )}
       </div>

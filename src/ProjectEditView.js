@@ -2,6 +2,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { ActionsContext, RecordsContext, SpreadsheetContext } from './contexts';
+import { get, set } from './persistance';
 import * as Components from './Components';
 
 export default class ProjectEditView extends PureComponent {
@@ -13,6 +14,7 @@ export default class ProjectEditView extends PureComponent {
   state = {
     spreadsheet: null,
     records: {},
+    edit: true,
     view: {}
   }
 
@@ -49,10 +51,12 @@ export default class ProjectEditView extends PureComponent {
 
     const response = await gapi.client.sheets.spreadsheets.values.batchGet({
       spreadsheetId,
-      ranges: sheets.map(sheet => `${sheet.properties.title}!A1:Z1000`)
+      ranges: sheets
+        .filter(({ properties: { sheetType } }) => sheetType === 'GRID')
+        .map(({ properties: { title } }) => `${title}!A1:Z1000`)
     });
 
-    const records = response.result.valueRanges.reduce((acc, { range, values }) => {
+    const records = response.result.valueRanges.reduce((acc, { range, values = [[]] }) => {
       const sheet = range.split('!')[0];
       const attributes = values[0];
       const list = values.slice(1).map(row =>
@@ -68,6 +72,9 @@ export default class ProjectEditView extends PureComponent {
   }
   handleTitleUpdate = async ({ target: { value } }) => {
     const { projectId } = this.props;
+
+    const projects = get('projects', {});
+    set('projects', { ...projects, [projectId]: value });
 
     await gapi.client.sheets.spreadsheets
       .batchUpdate({ spreadsheetId: projectId }, { requests: [ { updateSpreadsheetProperties: {
@@ -102,9 +109,10 @@ export default class ProjectEditView extends PureComponent {
   handleUpdate = (view = {}) => {
     this.setState({ view });
   }
+  handleEdit = ({ target: { checked } }) => this.setState({ edit: checked })
 
   render() {
-    const { spreadsheet, records, view: { component: componentName, ...componentProps } } = this.state;
+    const { spreadsheet, records, edit, view: { component: componentName, ...componentProps } } = this.state;
     const ViewComponent = Components[componentName] || Components.Null;
     const actions = {
       onUpdateRecords: this.handleUpdateRecords
@@ -116,12 +124,16 @@ export default class ProjectEditView extends PureComponent {
         <input defaultValue={ spreadsheet.properties.title } onBlur={this.handleTitleUpdate} />
         <a href={spreadsheet.spreadsheetUrl} target="_new">↪</a>
       </h1>
+      <label>Edit <input type="checkbox" checked={edit} onChange={this.handleEdit} /></label>
       <button onClick={this.handleViewUpdate}>Save</button>
-      <button onClick={this.handleUpdate}>Remove Root</button>
+      { componentName
+        ? <button onClick={() => this.handleUpdate()}>Remove Root</button>
+        : null
+      }
       <ActionsContext.Provider value={actions}>
         <RecordsContext.Provider value={records}>
           <SpreadsheetContext.Provider value={spreadsheet}>
-            <ViewComponent edit onUpdate={this.handleUpdate} {...componentProps} />
+            <ViewComponent edit={edit} onUpdate={this.handleUpdate} {...componentProps} />
           </SpreadsheetContext.Provider>
         </RecordsContext.Provider>
       </ActionsContext.Provider>

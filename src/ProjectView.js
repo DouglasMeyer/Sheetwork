@@ -49,7 +49,9 @@ export default class ProjectView extends PureComponent {
 
     const response = await gapi.client.sheets.spreadsheets.values.batchGet({
       spreadsheetId,
-      ranges: sheets.map(sheet => `${sheet.properties.title}!A1:Z1000`)
+      ranges: sheets
+        .filter(({ properties: { sheetType } }) => sheetType === 'GRID')
+        .map(({ properties: { title } }) => `${title}!A1:Z1000`)
     });
 
     const records = response.result.valueRanges.reduce((acc, { range, values }) => {
