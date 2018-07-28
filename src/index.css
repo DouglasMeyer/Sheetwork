@@ -1,0 +1,35 @@
+body {
+  margin: 0;
+  font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+  background-color: #DDD;
+}
+html, body, #root, #root > * {
+  height: 100%;
+}
+table {
+  margin: 0 auto;
+  border-spacing: 1em 5px;
+}
+table th {
+  text-align: left;
+}
+p {
+  margin-top: 0;
+}
+button, input {
+  font: inherit;
+}
+form {
+  margin: 0 auto;
+}
+form label {
+  display: inline-block;
+  margin: 0 0.5em;
+  vertical-align: top;
+}
+form label > input, form label > select {
+  display: block;
+}
+form label + input {
+  margin-top: 1.2em;
+}

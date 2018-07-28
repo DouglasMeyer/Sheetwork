@@ -3,17 +3,24 @@ import 'babel-polyfill'
 import React, { PureComponent, Fragment } from 'react';
 import ReactDOM from "react-dom";
 
+import './index.css';
 import Router from './Router';
 import ProjectsView from './ProjectsView';
 import ProjectView from './ProjectView';
 import ProjectEditView from './ProjectEditView';
 
+const redirect = sessionStorage.redirect;
+delete sessionStorage.redirect;
+if (redirect && redirect != location.href) {
+  history.replaceState(null, null, redirect);
+}
+
 function encodeRoute({ projectId, edit }) {
-  const pathname = projectId ? `/project/${projectId}${edit ? '/edit' : ''}` : '/';
+  const pathname = projectId ? `/Sheetwork/project/${projectId}${edit ? '/edit' : ''}` : '/Sheetwork/';
   const search = '';
   return { pathname, search };
 }
-const pathRegExp = new RegExp(`^/
+const pathRegExp = new RegExp(`^/Sheetwork/
 (?:project
   (?:/
     (?<projectId>[^/]+)
