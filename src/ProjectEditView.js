@@ -43,6 +43,8 @@ export default class ProjectEditView extends PureComponent {
       view = { component: 'JSONView' };
     }
     this.setState({ spreadsheet, records: {}, view });
+    const projects = get('projects', {});
+    set('projects', { ...projects, [projectId]: spreadsheet.properties.title });
 
     await this.handleUpdateRecords();
   }

@@ -22,7 +22,8 @@ const projectStyle = {
   margin: '0.5em',
   padding: '1em',
   borderRadius: '3px',
-  cursor: 'pointer'
+  cursor: 'pointer',
+  position: 'relative'
 };
 
 const newProjectStyle = Object.assign({},
@@ -40,6 +41,21 @@ const disabledNewProjectStyle = Object.assign({},
     cursor: 'default'
   }
 );
+
+const removeSize = 20;
+const removeStyle = {
+  position: 'absolute',
+  display: 'inline-box',
+  boxSizing: 'border-box',
+  padding: 0,
+  top: -removeSize/2,
+  right: -removeSize/2,
+  width: removeSize,
+  height: removeSize,
+  borderRadius: removeSize/2,
+  fontSize: removeSize/2,
+  cursor: 'pointer'
+};
 
 export default class ProjectsView extends PureComponent {
   static propTypes = {
@@ -76,10 +92,17 @@ export default class ProjectsView extends PureComponent {
 
     this.props.onProject(id);
   }
+  handleRemoveProject = (e, projectId) => {
+    e.stopPropagation();
+    const projects = get('projects', {});
+    delete projects[projectId];
+    set('projects', projects);
+    this.setState({ projects });
+  }
 
   render() {
     const { projects } = this.state;
-    const { authUser } = this.props;
+    const { authUser, onProject } = this.props;
 
     return <div style={pageStyle}>
       <div style={gridStyle}>
@@ -95,8 +118,12 @@ export default class ProjectsView extends PureComponent {
       </div>
       <div style={gridStyle}>
         { Object.keys(projects).map(projectId =>
-          <div key={projectId} style={projectStyle} onClick={() => this.props.onProject(projectId)}>
+          <div key={projectId} style={projectStyle} onClick={() => onProject(projectId)}>
             { projects[projectId] }
+            <button
+              style={removeStyle}
+              onClick={(e) => this.handleRemoveProject(e, projectId)}
+            >✕</button>
           </div>
         )}
       </div>

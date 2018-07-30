@@ -2,6 +2,7 @@
 import React, { PureComponent } from "react";
 import PropTypes from "prop-types";
 import { ActionsContext, RecordsContext, SpreadsheetContext } from './contexts';
+import { get, set } from './persistance';
 import * as Components from './Components';
 
 export default class ProjectView extends PureComponent {
@@ -41,6 +42,8 @@ export default class ProjectView extends PureComponent {
       view = { component: 'JSONView' };
     }
     this.setState({ spreadsheet, records: {}, view });
+    const projects = get('projects', {});
+    set('projects', { ...projects, [projectId]: spreadsheet.properties.title });
 
     await this.handleUpdateRecords();
   }
