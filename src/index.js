@@ -69,9 +69,10 @@ class App extends PureComponent {
       'scope': SCOPES,
       'discoveryDocs': DISCOVERY_DOCS,
     });
-    const { currentUser } = gapi.auth2.getAuthInstance()
-    currentUser.listen(this.updateAuthUser);
-    this.updateAuthUser(currentUser.get());
+    const auth = gapi.auth2.getAuthInstance();
+    if (!auth.isSignedIn.get()) await auth.signIn();
+    auth.currentUser.listen(this.updateAuthUser);
+    this.updateAuthUser(auth.currentUser.get());
   }
   updateAuthUser = (authUser) => {
     this.setState({ authUser });
